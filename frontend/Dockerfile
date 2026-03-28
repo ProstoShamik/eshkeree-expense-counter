@@ -1,5 +1,8 @@
 # Build stage
-FROM node:18-alpine AS build
+FROM node:22-alpine AS build
+
+# Install dependencies for native bindings (Tailwind v4 / Oxide)
+RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
