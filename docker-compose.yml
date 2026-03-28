@@ -18,11 +18,11 @@ services:
     restart: always
     depends_on:
       - postgres
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      # If you need to expose the backend separately for testing:
-      # ports:
-      #   - "8000:8000"
+    env_file:
+      - ./backend/.env
+    # If you need to expose the backend separately for testing:
+    # ports:
+    #   - "8000:8000"
 
   frontend:
     build: ./frontend
