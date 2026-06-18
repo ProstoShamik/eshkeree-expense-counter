@@ -6,8 +6,8 @@ export function useExpenses(filters: Omit<ExpenseFilters, 'cursor'>) {
     return useInfiniteQuery<ExpenseListResponse>({
         queryKey: ['expenses', filters],
         queryFn: ({ pageParam }) =>
-            getExpenses({ ...filters, cursor: pageParam as number | undefined }),
-        initialPageParam: undefined as number | undefined,
+            getExpenses({ ...filters, cursor: pageParam as string | undefined }),
+        initialPageParam: undefined as string | undefined,
         getNextPageParam: (lastPage) =>
             lastPage.has_more ? lastPage.next_cursor ?? undefined : undefined,
     });

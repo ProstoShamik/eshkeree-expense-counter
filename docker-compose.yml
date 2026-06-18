@@ -1,25 +1,26 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-eshkeree}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eshkeree_password}
+      POSTGRES_DB: ${POSTGRES_DB:-eshkeree}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   backend:
     build: ./backend
     restart: always
     depends_on:
       - postgres
-    env_file:
-      - ./backend/.env
+    environment:
+      DB_URL: postgresql+asyncpg://${POSTGRES_USER:-eshkeree}:${POSTGRES_PASSWORD:-eshkeree_password}@postgres:5432/${POSTGRES_DB:-eshkeree}
+      DB_AUTO_CREATE_TABLES: ${DB_AUTO_CREATE_TABLES:-true}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-dev-only-change-me-to-a-long-random-secret}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:5173}
     # If you need to expose the backend separately for testing:
     # ports:
     #   - "8000:8000"
@@ -28,7 +29,7 @@ services:
     build: ./frontend
     restart: always
     ports:
-      - "80:80"
+      - "80:8080"
     depends_on:
       - backend
 

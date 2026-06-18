@@ -37,11 +37,11 @@ async def get_expenses(
     current_user: User = Depends(get_current_user),
 ):
     logger.info(f"User {current_user.id} is fetching expenses")
-    expenses, has_more = await services.expenses.get_many(db, current_user.id, filters)
+    expenses, next_cursor = await services.expenses.get_many(db, current_user.id, filters)
     return ExpenseListResponse(
         data=[ExpenseRead.model_validate(e) for e in expenses],
-        next_cursor=expenses[-1].id if has_more else None,
-        has_more=has_more,
+        next_cursor=next_cursor,
+        has_more=next_cursor is not None,
     )
 
 

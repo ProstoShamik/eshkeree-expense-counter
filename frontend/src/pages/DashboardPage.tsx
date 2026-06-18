@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { getApiErrorMessage } from '@/api/errors';
 import { useExpenses, useDeleteExpense } from '@/hooks/useExpenses';
 import { useCategories } from '@/hooks/useCategories';
 import type { Expense, ExpenseFilters, ExpenseSortField, SortOrder } from '@/types';
@@ -17,6 +18,7 @@ export default function DashboardPage() {
     const [dateTo, setDateTo] = useState('');
     const [amountFrom, setAmountFrom] = useState('');
     const [amountTo, setAmountTo] = useState('');
+    const [searchInput, setSearchInput] = useState('');
     const [search, setSearch] = useState('');
     const [sort, setSort] = useState<SortConfig>({ field: 'expense_date', order: 'desc' });
 
@@ -24,6 +26,12 @@ export default function DashboardPage() {
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [actionError, setActionError] = useState('');
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => setSearch(searchInput.trim()), 300);
+        return () => window.clearTimeout(timeout);
+    }, [searchInput]);
 
     const filters: Omit<ExpenseFilters, 'cursor'> = useMemo(
         () => ({
@@ -49,6 +57,11 @@ export default function DashboardPage() {
         [data],
     );
 
+    const loadedTotal = useMemo(
+        () => expenses.reduce((sum, exp) => sum + Number(exp.amount), 0),
+        [expenses],
+    );
+
     const handleSort = (field: ExpenseSortField) => {
         setSort((prev) =>
             prev.field === field
@@ -67,8 +80,14 @@ export default function DashboardPage() {
     };
 
     const handleDelete = async (id: number) => {
-        if (selectedExpense?.id === id) setSelectedExpense(null);
-        await deleteMutation.mutateAsync(id);
+        if (!window.confirm('Удалить этот расход?')) return;
+        setActionError('');
+        try {
+            if (selectedExpense?.id === id) setSelectedExpense(null);
+            await deleteMutation.mutateAsync(id);
+        } catch (err) {
+            setActionError(getApiErrorMessage(err, 'Не удалось удалить расход'));
+        }
     };
 
     const handleFormClose = () => {
@@ -91,10 +110,11 @@ export default function DashboardPage() {
         setDateTo('');
         setAmountFrom('');
         setAmountTo('');
+        setSearchInput('');
         setSearch('');
     };
 
-    const hasActiveFilters = categoryFilter || dateFrom || dateTo || amountFrom || amountTo || search;
+    const hasActiveFilters = categoryFilter || dateFrom || dateTo || amountFrom || amountTo || searchInput;
 
     const SortIcon = ({ field }: { field: ExpenseSortField }) => {
         if (sort.field !== field) return <span className="ml-1 text-dark-400">↕</span>;
@@ -104,7 +124,7 @@ export default function DashboardPage() {
     const inputClass =
         'rounded-xl border border-dark-500 bg-dark-700 px-3 py-2 text-sm text-dark-100 outline-none transition-colors placeholder:text-dark-400 focus:border-accent-500 focus:ring-1 focus:ring-accent-500/30';
 
-    const formatAmount = (val: string) => {
+    const formatAmount = (val: string | number) => {
         return Number(val).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
@@ -118,12 +138,17 @@ export default function DashboardPage() {
     };
 
     return (
-        <div className="flex gap-5 h-[calc(100vh-5.5rem)]">
+        <div className="flex min-h-[calc(100vh-5.5rem)] flex-col gap-5 xl:h-[calc(100vh-5.5rem)] xl:flex-row">
             {/* Main content */}
             <div className="flex flex-1 flex-col min-w-0">
                 {/* Header */}
-                <div className="mb-4 flex items-center justify-between">
-                    <h1 className="text-xl font-bold text-dark-100">Расходы</h1>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="text-xl font-bold text-dark-100">Расходы</h1>
+                        <p className="mt-1 text-sm text-dark-300">
+                            Загружено: {expenses.length} · сумма: {formatAmount(loadedTotal)}
+                        </p>
+                    </div>
                     <button
                         onClick={handleAdd}
                         className="flex items-center gap-2 rounded-xl bg-accent-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-accent-400 hover:shadow-lg hover:shadow-accent-500/20"
@@ -141,8 +166,8 @@ export default function DashboardPage() {
                         <div className="min-w-[180px] flex-1">
                             <label className="mb-1 block text-xs font-medium text-dark-300">Поиск</label>
                             <input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
                                 placeholder="По описанию..."
                                 className={inputClass + ' w-full'}
                             />
@@ -187,6 +212,12 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
+                {actionError && (
+                    <div className="mb-4 rounded-xl border border-danger-500/30 bg-danger-500/10 px-4 py-3 text-sm text-danger-400">
+                        {actionError}
+                    </div>
+                )}
+
                 {/* Table */}
                 <div className="flex-1 overflow-auto rounded-2xl border border-dark-600 bg-dark-800">
                     {isLoading ? (
@@ -205,7 +236,7 @@ export default function DashboardPage() {
                             <p className="text-sm">Расходов пока нет</p>
                         </div>
                     ) : (
-                        <table className="w-full text-sm">
+                        <table className="min-w-[760px] w-full text-sm">
                             <thead>
                                 <tr className="border-b border-dark-600 text-left">
                                     <th
@@ -315,7 +346,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Categories panel */}
-            <div className="w-[280px] flex-shrink-0">
+            <div className="min-h-[320px] flex-shrink-0 xl:w-[280px]">
                 <CategoriesPanel
                     selectedExpense={selectedExpense}
                     onCategoryAssigned={handleCategoryAssigned}

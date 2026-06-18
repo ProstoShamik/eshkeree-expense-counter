@@ -31,16 +31,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
-        if (token) {
+        if (token && !user) {
             fetchUser();
         } else {
             setIsLoading(false);
         }
-    }, [token, fetchUser]);
+    }, [token, user, fetchUser]);
 
     const login = useCallback(async (accessToken: string) => {
         localStorage.setItem('access_token', accessToken);
-        setToken(accessToken);
+        setIsLoading(true);
+        try {
+            const userData = await getMe();
+            setUser(userData);
+            setToken(accessToken);
+        } catch (error) {
+            localStorage.removeItem('access_token');
+            setToken(null);
+            setUser(null);
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
 
     const logout = useCallback(() => {

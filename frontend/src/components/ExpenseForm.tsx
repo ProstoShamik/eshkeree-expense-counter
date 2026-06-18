@@ -1,16 +1,18 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { getApiErrorMessage } from '@/api/errors';
 import { useCreateExpense, useUpdateExpense } from '@/hooks/useExpenses';
 import { useCategories } from '@/hooks/useCategories';
 import type { Expense } from '@/types';
 import Modal from './Modal';
 
 const expenseSchema = z.object({
-    amount: z.coerce.number().positive('Сумма должна быть больше 0'),
+    amount: z.number().positive('Сумма должна быть больше 0').max(99999999.99, 'Слишком большая сумма'),
     description: z.string().max(500).optional().or(z.literal('')),
     expense_date: z.string().min(1, 'Укажите дату'),
-    category_id: z.coerce.number().optional(),
+    category_id: z.number().int().positive().optional(),
 });
 
 type ExpenseFormData = z.infer<typeof expenseSchema>;
@@ -26,6 +28,7 @@ export default function ExpenseForm({ isOpen, onClose, expense }: Props) {
     const updateMutation = useUpdateExpense();
     const { data: categories } = useCategories();
     const isEdit = !!expense;
+    const [serverError, setServerError] = useState('');
 
     const {
         register,
@@ -50,6 +53,7 @@ export default function ExpenseForm({ isOpen, onClose, expense }: Props) {
     });
 
     const onSubmit = async (data: ExpenseFormData) => {
+        setServerError('');
         const payload = {
             amount: data.amount,
             description: data.description || null,
@@ -57,13 +61,17 @@ export default function ExpenseForm({ isOpen, onClose, expense }: Props) {
             category_id: data.category_id || null,
         };
 
-        if (isEdit && expense) {
-            await updateMutation.mutateAsync({ id: expense.id, payload });
-        } else {
-            await createMutation.mutateAsync(payload);
+        try {
+            if (isEdit && expense) {
+                await updateMutation.mutateAsync({ id: expense.id, payload });
+            } else {
+                await createMutation.mutateAsync(payload);
+            }
+            reset();
+            onClose();
+        } catch (err) {
+            setServerError(getApiErrorMessage(err, 'Не удалось сохранить расход'));
         }
-        reset();
-        onClose();
     };
 
     const inputClass =
@@ -72,10 +80,16 @@ export default function ExpenseForm({ isOpen, onClose, expense }: Props) {
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Редактировать расход' : 'Новый расход'}>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                {serverError && (
+                    <div className="rounded-xl border border-danger-500/30 bg-danger-500/10 px-4 py-3 text-sm text-danger-400">
+                        {serverError}
+                    </div>
+                )}
+
                 <div>
                     <label className="mb-1.5 block text-sm font-medium text-dark-200">Сумма</label>
                     <input
-                        {...register('amount')}
+                        {...register('amount', { valueAsNumber: true })}
                         type="number"
                         step="0.01"
                         className={inputClass}
@@ -104,7 +118,12 @@ export default function ExpenseForm({ isOpen, onClose, expense }: Props) {
 
                 <div>
                     <label className="mb-1.5 block text-sm font-medium text-dark-200">Категория</label>
-                    <select {...register('category_id')} className={inputClass}>
+                    <select
+                        {...register('category_id', {
+                            setValueAs: (value) => (value === '' ? undefined : Number(value)),
+                        })}
+                        className={inputClass}
+                    >
                         <option value="">Без категории</option>
                         {categories?.map((c) => (
                             <option key={c.id} value={c.id}>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getApiErrorMessage } from '@/api/errors';
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '@/hooks/useCategories';
 import { useUpdateExpense } from '@/hooks/useExpenses';
 import type { Expense, Category } from '@/types';
@@ -18,12 +19,18 @@ export default function CategoriesPanel({ selectedExpense, onCategoryAssigned }:
     const [newName, setNewName] = useState('');
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editName, setEditName] = useState('');
+    const [error, setError] = useState('');
 
     const handleCreate = async () => {
         const trimmed = newName.trim();
         if (!trimmed) return;
-        await createMutation.mutateAsync({ name: trimmed });
-        setNewName('');
+        setError('');
+        try {
+            await createMutation.mutateAsync({ name: trimmed });
+            setNewName('');
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Не удалось создать категорию'));
+        }
     };
 
     const handleStartEdit = (cat: Category) => {
@@ -35,9 +42,14 @@ export default function CategoriesPanel({ selectedExpense, onCategoryAssigned }:
         if (editingId === null) return;
         const trimmed = editName.trim();
         if (!trimmed) return;
-        await updateMutation.mutateAsync({ id: editingId, payload: { name: trimmed } });
-        setEditingId(null);
-        setEditName('');
+        setError('');
+        try {
+            await updateMutation.mutateAsync({ id: editingId, payload: { name: trimmed } });
+            setEditingId(null);
+            setEditName('');
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Не удалось сохранить категорию'));
+        }
     };
 
     const handleCancelEdit = () => {
@@ -45,17 +57,28 @@ export default function CategoriesPanel({ selectedExpense, onCategoryAssigned }:
         setEditName('');
     };
 
-    const handleDelete = async (id: number) => {
-        await deleteMutation.mutateAsync(id);
+    const handleDelete = async (cat: Category) => {
+        if (!window.confirm(`Удалить категорию "${cat.name}"? Расходы останутся без категории.`)) return;
+        setError('');
+        try {
+            await deleteMutation.mutateAsync(cat.id);
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Не удалось удалить категорию'));
+        }
     };
 
     const handleAssignCategory = async (categoryId: number | null) => {
         if (!selectedExpense) return;
-        await updateExpenseMutation.mutateAsync({
-            id: selectedExpense.id,
-            payload: { category_id: categoryId },
-        });
-        onCategoryAssigned();
+        setError('');
+        try {
+            await updateExpenseMutation.mutateAsync({
+                id: selectedExpense.id,
+                payload: { category_id: categoryId },
+            });
+            onCategoryAssigned();
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Не удалось назначить категорию'));
+        }
     };
 
     const isGlobal = (cat: Category) => cat.user_id === null;
@@ -68,6 +91,11 @@ export default function CategoriesPanel({ selectedExpense, onCategoryAssigned }:
                 {selectedExpense && (
                     <p className="mt-1 text-xs text-accent-400">
                         Выбран расход #{selectedExpense.id} — нажмите категорию для назначения
+                    </p>
+                )}
+                {error && (
+                    <p className="mt-2 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-400">
+                        {error}
                     </p>
                 )}
             </div>
@@ -169,7 +197,7 @@ export default function CategoriesPanel({ selectedExpense, onCategoryAssigned }:
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleDelete(cat.id);
+                                                    handleDelete(cat);
                                                 }}
                                                 className="rounded-md p-1 text-dark-300 hover:bg-danger-500/20 hover:text-danger-500"
                                             >

@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { useLogin } from '@/hooks/useAuth';
-import { AxiosError } from 'axios';
+import { getApiErrorMessage } from '@/api/errors';
 
 const loginSchema = z.object({
     username: z.string().min(1, 'Введите имя пользователя'),
@@ -32,11 +32,7 @@ export default function LoginPage() {
             await loginMutation.mutateAsync(data);
             navigate('/expenses', { replace: true });
         } catch (err) {
-            if (err instanceof AxiosError) {
-                setServerError(err.response?.data?.detail || 'Ошибка авторизации');
-            } else {
-                setServerError('Произошла ошибка');
-            }
+            setServerError(getApiErrorMessage(err, 'Ошибка авторизации'));
         }
     };
 

@@ -131,7 +131,10 @@ async def init_db() -> None:
         tables = list(Base.metadata.tables.keys())
         logger.info(f"Registered {len(tables)} tables: {', '.join(tables)}")
 
-        await create_tables()
+        if settings.database.auto_create_tables:
+            await create_tables()
+        else:
+            logger.info("Automatic table creation is disabled")
 
         logger.info("Database initialized successfully")
 

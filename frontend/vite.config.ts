@@ -12,9 +12,11 @@ export default defineConfig({
     },
     server: {
         proxy: {
-            '/auth': 'http://localhost:8000',
-            '/expenses': 'http://localhost:8000',
-            '/categories': 'http://localhost:8000',
+            '/api': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, ''),
+            },
         },
     },
 })

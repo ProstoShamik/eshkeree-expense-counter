@@ -4,13 +4,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { useRegister, useLogin } from '@/hooks/useAuth';
-import { AxiosError } from 'axios';
+import { getApiErrorMessage } from '@/api/errors';
 
 const registerSchema = z
     .object({
         email: z.string().email('Некорректный email'),
         username: z.string().min(3, 'Минимум 3 символа'),
-        password: z.string().min(6, 'Минимум 6 символов'),
+        password: z.string().min(8, 'Минимум 8 символов'),
         confirmPassword: z.string(),
     })
     .refine((d) => d.password === d.confirmPassword, {
@@ -48,11 +48,7 @@ export default function RegisterPage() {
             });
             navigate('/expenses', { replace: true });
         } catch (err) {
-            if (err instanceof AxiosError) {
-                setServerError(err.response?.data?.detail || 'Ошибка регистрации');
-            } else {
-                setServerError('Произошла ошибка');
-            }
+            setServerError(getApiErrorMessage(err, 'Ошибка регистрации'));
         }
     };
 

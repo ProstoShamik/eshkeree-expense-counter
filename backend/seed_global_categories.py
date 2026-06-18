@@ -2,7 +2,7 @@ import asyncio
 import argparse
 import sys
 from sqlalchemy import select
-from core.database import init_db, close_db, db_session
+from core.database import init_db, close_db, AsyncSessionLocal
 from models.category import Category
 
 # Define your default global categories here
@@ -25,7 +25,7 @@ GLOBAL_CATEGORIES = [
 async def seed():
     await init_db()
     
-    async with db_session() as db:
+    async with AsyncSessionLocal() as db:
         try:
             for category_name in GLOBAL_CATEGORIES:
                 # Check if it already exists globally

@@ -35,7 +35,7 @@ export interface ExpenseFilters {
     amount_from?: number;
     amount_to?: number;
     search?: string;
-    cursor?: number;
+    cursor?: string;
     limit?: number;
     sort_by?: ExpenseSortField;
     sort_order?: SortOrder;
@@ -43,6 +43,6 @@ export interface ExpenseFilters {
 
 export interface ExpenseListResponse {
     data: Expense[];
-    next_cursor: number | null;
+    next_cursor: string | null;
     has_more: boolean;
 }
